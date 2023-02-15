@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Html exposing (..)
+import Html.Events exposing (..)
 import Task
 import Time
 
@@ -11,29 +12,37 @@ import Time
 
 
 main =
-  Browser.element
-    { init = init
-    , view = view
-    , update = update
-    , subscriptions = subscriptions
-    }
+    Browser.element
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = subscriptions
+        }
 
 
 
 -- MODEL
 
 
+type Timer
+    = Idle
+    | Running
+    | Paused
+
+
 type alias Model =
-  { zone : Time.Zone
-  , time : Time.Posix
-  }
+    { secondsLeft : Int
+    , timer : Timer
+    }
 
 
-init : () -> (Model, Cmd Msg)
+init : () -> ( Model, Cmd Msg )
 init _ =
-  ( Model Time.utc (Time.millisToPosix 0)
-  , Task.perform AdjustTimeZone Time.here
-  )
+    ( { secondsLeft = 60
+      , timer = Idle
+      }
+    , Cmd.none
+    )
 
 
 
@@ -41,23 +50,33 @@ init _ =
 
 
 type Msg
-  = Tick Time.Posix
-  | AdjustTimeZone Time.Zone
+    = Tick Time.Posix
+    | StartTimer
+    | PauseTimer
 
 
-
-update : Msg -> Model -> (Model, Cmd Msg)
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-  case msg of
-    Tick newTime ->
-      ( { model | time = newTime }
-      , Cmd.none
-      )
+    case msg of
+        Tick _ ->
+            case model.timer of
+                Idle ->
+                    (model, Cmd.none)
 
-    AdjustTimeZone newZone ->
-      ( { model | zone = newZone }
-      , Cmd.none
-      )
+                Paused ->
+                    (model, Cmd.none)
+
+                Running ->
+                    if model.secondsLeft == 1 then
+                        ({ model | secondsLeft = 60, timer = Idle }, Cmd.none)
+                    else
+                        ({ model | secondsLeft = model.secondsLeft - 1 }, Cmd.none )
+
+        StartTimer ->
+            ( { model | timer = Running }, Cmd.none )
+
+        PauseTimer ->
+            ( { model | timer = Paused }, Cmd.none )
 
 
 
@@ -66,7 +85,7 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Time.every 1000 Tick
+    Time.every 1000 Tick
 
 
 
@@ -75,9 +94,17 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-  let
-    hour   = String.fromInt (Time.toHour   model.zone model.time)
-    minute = String.fromInt (Time.toMinute model.zone model.time)
-    second = String.fromInt (Time.toSecond model.zone model.time)
-  in
-  h1 [] [ text (hour ++ ":" ++ minute ++ ":" ++ second) ]
+    let
+        seconds =
+            String.fromInt model.secondsLeft
+    in
+    div []
+        [ h1 [] [ text seconds ]
+        , case model.timer of
+            Idle ->
+              button [ onClick StartTimer ] [ text "Start" ]
+            Running ->
+              button [ onClick PauseTimer ] [ text "Pause" ]
+            Paused ->
+              button [ onClick StartTimer ] [ text "Resume" ]
+        ]

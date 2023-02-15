@@ -5,3 +5,6 @@ make:
 
 prod:
 	elm make src/Main.elm --optimize
+
+fmt:
+	elm-format src/Main.elm --yes

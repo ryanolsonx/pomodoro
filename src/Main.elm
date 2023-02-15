@@ -37,8 +37,13 @@ type Timer
     | Paused
 
 
+type alias Config =
+    { minutesPerPomodoro : Int
+    }
+
+
 type alias Model =
-    { totalPomodoroSeconds : Int
+    { config : Config
     , secondsLeft : Int
     , timer : Timer
     }
@@ -46,8 +51,14 @@ type alias Model =
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { totalPomodoroSeconds = 60
-      , secondsLeft = 60
+    let
+        minutesPerPomodoro =
+            25
+    in
+    ( { config =
+            { minutesPerPomodoro = minutesPerPomodoro
+            }
+      , secondsLeft = minutesPerPomodoro * 60
       , timer = Idle
       }
     , Cmd.none
@@ -78,7 +89,7 @@ update msg model =
                 Running ->
                     if model.secondsLeft == 1 then
                         ( { model
-                            | secondsLeft = model.totalPomodoroSeconds
+                            | secondsLeft = model.config.minutesPerPomodoro * 60
                             , timer = Idle
                           }
                         , notify "Timer is done."

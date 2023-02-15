@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Browser
 import Html exposing (..)
@@ -21,6 +21,13 @@ main =
 
 
 
+-- PORTS
+
+
+port notify : String -> Cmd msg
+
+
+
 -- MODEL
 
 
@@ -31,14 +38,16 @@ type Timer
 
 
 type alias Model =
-    { secondsLeft : Int
+    { totalPomodoroSeconds : Int
+    , secondsLeft : Int
     , timer : Timer
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { secondsLeft = 60
+    ( { totalPomodoroSeconds = 60
+      , secondsLeft = 60
       , timer = Idle
       }
     , Cmd.none
@@ -61,16 +70,22 @@ update msg model =
         Tick _ ->
             case model.timer of
                 Idle ->
-                    (model, Cmd.none)
+                    ( model, Cmd.none )
 
                 Paused ->
-                    (model, Cmd.none)
+                    ( model, Cmd.none )
 
                 Running ->
                     if model.secondsLeft == 1 then
-                        ({ model | secondsLeft = 60, timer = Idle }, Cmd.none)
+                        ( { model
+                            | secondsLeft = model.totalPomodoroSeconds
+                            , timer = Idle
+                          }
+                        , notify "Timer is done."
+                        )
+
                     else
-                        ({ model | secondsLeft = model.secondsLeft - 1 }, Cmd.none )
+                        ( { model | secondsLeft = model.secondsLeft - 1 }, Cmd.none )
 
         StartTimer ->
             ( { model | timer = Running }, Cmd.none )
@@ -102,9 +117,11 @@ view model =
         [ h1 [] [ text seconds ]
         , case model.timer of
             Idle ->
-              button [ onClick StartTimer ] [ text "Start" ]
+                button [ onClick StartTimer ] [ text "Start" ]
+
             Running ->
-              button [ onClick PauseTimer ] [ text "Pause" ]
+                button [ onClick PauseTimer ] [ text "Pause" ]
+
             Paused ->
-              button [ onClick StartTimer ] [ text "Resume" ]
+                button [ onClick StartTimer ] [ text "Resume" ]
         ]

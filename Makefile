@@ -1,10 +1,13 @@
-.PHONY: make prod
+.PHONY: make prod s fmt
 
 make:
-	elm make src/Main.elm
+	elm make src/Main.elm --output=elm.js
 
 prod:
-	elm make src/Main.elm --optimize
+	elm make src/Main.elm --output=elm.js --optimize
 
 fmt:
 	elm-format src/Main.elm --yes
+
+s: make
+	npx serve

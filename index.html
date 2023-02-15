@@ -1,0 +1,40 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <title>Pomodoro</title>
+  <meta charset="UTF-8">
+  <script type="text/javascript" src="elm.js"></script>
+</head>
+
+<body>
+    <div id="myapp"></div>
+</body>
+
+<script type="text/javascript">
+
+// Start the Elm application.
+var app = Elm.Main.init({
+    node: document.getElementById('myapp')
+});
+
+app.ports.notify.subscribe((message) => {
+  const notify = () => new Notification(message);
+
+  if (Notification.permission === 'default') {
+    Notification.requestPermission()
+      .then(permission => {
+        if (permission !== 'granted') {
+          throw new Error('No notification can be sent')
+        }
+
+        notify();
+      })
+      .catch(e => { console.error(e) })
+  } else if (Notification.permission === 'granted') {
+    notify();
+  }
+});
+</script>
+
+</html>

@@ -28,21 +28,18 @@ port notify : String -> Cmd msg
 
 
 
--- MODEL
+-- TIME
 
 
-type Kind
-    = Pomodoro
-    | ShortBreak
-    | LongBreak
+getFormattedTime secondsLeft =
+    let
+        minutes =
+            getMinutesFromSecondsLeft secondsLeft
 
-
-type alias Model =
-    { pomodorosCompleted : Int
-    , secondsLeft : Int
-    , isRunning : Bool
-    , kind : Kind
-    }
+        seconds =
+            getSecondsFromSecondsLeft secondsLeft
+    in
+    zeroPad minutes ++ ":" ++ zeroPad seconds
 
 
 minsToSecs m =
@@ -70,10 +67,68 @@ zeroPad n =
         strN
 
 
+
+-- KIND
+
+
+getSecondsToTimeForKind kind =
+    case kind of
+        Pomodoro ->
+            2
+
+        ShortBreak ->
+            5
+
+        LongBreak ->
+            10
+
+
+getNameForKind kind =
+    case kind of
+        Pomodoro ->
+            "Pomodoro"
+
+        ShortBreak ->
+            "Short Break"
+
+        LongBreak ->
+            "Long Break"
+
+
+getNotificationTextForKind kind =
+    case kind of
+        Pomodoro ->
+            "Time to focus!"
+
+        ShortBreak ->
+            "Time for a short break"
+
+        LongBreak ->
+            "Time for a long break"
+
+
+
+-- MODEL
+
+
+type Kind
+    = Pomodoro
+    | ShortBreak
+    | LongBreak
+
+
+type alias Model =
+    { pomodorosCompleted : Int
+    , secondsLeft : Int
+    , isRunning : Bool
+    , kind : Kind
+    }
+
+
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { pomodorosCompleted = 0
-      , secondsLeft = 5 --minsToSecs 25
+      , secondsLeft = getSecondsToTimeForKind Pomodoro
       , isRunning = False
       , kind = Pomodoro
       }
@@ -91,13 +146,56 @@ type Msg
     | Pause
 
 
+getNextKind model =
+    let
+        nextPomodorosCompleted =
+            if model.kind == Pomodoro then
+                model.pomodorosCompleted + 1
+
+            else
+                model.pomodorosCompleted
+
+        nextKind =
+            case model.kind of
+                Pomodoro ->
+                    if modBy 4 nextPomodorosCompleted == 0 then
+                        LongBreak
+
+                    else
+                        ShortBreak
+
+                -- TODO: how to go to long break.
+                ShortBreak ->
+                    Pomodoro
+
+                LongBreak ->
+                    Pomodoro
+
+        seconds =
+            getSecondsToTimeForKind nextKind
+    in
+    { model
+        | kind = nextKind
+        , secondsLeft = seconds
+        , isRunning = False
+        , pomodorosCompleted = nextPomodorosCompleted
+    }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Tick _ ->
             if model.isRunning then
                 if model.secondsLeft == 1 then
-                    ( { model | secondsLeft = minsToSecs 25, isRunning = False }, notify "Timer is done." )
+                    let
+                        nextModel =
+                            getNextKind model
+
+                        notification =
+                            getNotificationTextForKind nextModel.kind
+                    in
+                    ( nextModel, notify notification )
 
                 else
                     ( { model | secondsLeft = model.secondsLeft - 1 }, Cmd.none )
@@ -127,22 +225,22 @@ subscriptions model =
 
 view model =
     let
-        minutes =
-            getMinutesFromSecondsLeft model.secondsLeft
+        kindName =
+            getNameForKind model.kind
 
-        seconds =
-            getSecondsFromSecondsLeft model.secondsLeft
-
-        formattedTime =
-            zeroPad minutes ++ ":" ++ zeroPad seconds
+        time =
+            getFormattedTime model.secondsLeft
 
         title =
-            formattedTime ++ " - Time to focus!"
+            time ++ " - " ++ getNotificationTextForKind model.kind
     in
     { title = title
     , body =
         [ div []
-            [ h1 [] [ text formattedTime ]
+            [ h1 []
+                [ text kindName
+                ]
+            , h2 [] [ text time ]
             , if model.isRunning then
                 button [ onClick Pause ] [ text "Pause" ]
 

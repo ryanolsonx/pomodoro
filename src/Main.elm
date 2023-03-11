@@ -107,6 +107,22 @@ getNotificationTextForKind kind =
             "Time for a long break"
 
 
+getNextKind kind pomodorosCompleted =
+    case kind of
+        Pomodoro ->
+            if modBy 4 pomodorosCompleted == 0 then
+                LongBreak
+
+            else
+                ShortBreak
+
+        ShortBreak ->
+            Pomodoro
+
+        LongBreak ->
+            Pomodoro
+
+
 
 -- MODEL
 
@@ -144,9 +160,10 @@ type Msg
     = Tick Time.Posix
     | Start
     | Pause
+    | Skip
 
 
-getNextKind model =
+getNextKind2 model =
     let
         nextPomodorosCompleted =
             if model.kind == Pomodoro then
@@ -156,20 +173,7 @@ getNextKind model =
                 model.pomodorosCompleted
 
         nextKind =
-            case model.kind of
-                Pomodoro ->
-                    if modBy 4 nextPomodorosCompleted == 0 then
-                        LongBreak
-
-                    else
-                        ShortBreak
-
-                -- TODO: how to go to long break.
-                ShortBreak ->
-                    Pomodoro
-
-                LongBreak ->
-                    Pomodoro
+            getNextKind model.kind nextPomodorosCompleted
 
         seconds =
             getSecondsToTimeForKind nextKind
@@ -190,7 +194,7 @@ update msg model =
                 if model.secondsLeft == 1 then
                     let
                         nextModel =
-                            getNextKind model
+                            getNextKind2 model
 
                         notification =
                             getNotificationTextForKind nextModel.kind
@@ -208,6 +212,9 @@ update msg model =
 
         Pause ->
             ( { model | isRunning = False }, Cmd.none )
+
+        Skip ->
+            ( getNextKind2 model, Cmd.none )
 
 
 
@@ -246,6 +253,11 @@ view model =
 
               else
                 button [ onClick Start ] [ text "Start" ]
+            , if model.isRunning then
+                button [ onClick Skip ] [ text "Skip" ]
+
+              else
+                div [] []
             ]
         ]
     }

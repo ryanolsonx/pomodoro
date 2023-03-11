@@ -74,13 +74,13 @@ zeroPad n =
 getSecondsToTimeForKind kind =
     case kind of
         Pomodoro ->
-            2
+            minsToSecs 25
 
         ShortBreak ->
-            5
+            minsToSecs 5
 
         LongBreak ->
-            10
+            minsToSecs 15
 
 
 getNameForKind kind =

@@ -12,7 +12,7 @@ import Time
 
 
 main =
-    Browser.element
+    Browser.document
         { init = init
         , view = view
         , update = update
@@ -31,35 +31,51 @@ port notify : String -> Cmd msg
 -- MODEL
 
 
-type Timer
-    = Idle
-    | Running
-    | Paused
-
-
-type alias Config =
-    { minutesPerPomodoro : Int
-    }
+type Kind
+    = Pomodoro
+    | ShortBreak
+    | LongBreak
 
 
 type alias Model =
-    { config : Config
+    { pomodorosCompleted : Int
     , secondsLeft : Int
-    , timer : Timer
+    , isRunning : Bool
+    , kind : Kind
     }
+
+
+minsToSecs m =
+    m * 60
+
+
+getMinutesFromSecondsLeft : Int -> Int
+getMinutesFromSecondsLeft secondsLeft =
+    floor <| toFloat secondsLeft / 60
+
+
+getSecondsFromSecondsLeft =
+    modBy 60
+
+
+zeroPad n =
+    let
+        strN =
+            String.fromInt n
+    in
+    if n < 10 then
+        "0" ++ strN
+
+    else
+        strN
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    let
-        minutesPerPomodoro =
-            25
-    in
-    ( { config =
-            { minutesPerPomodoro = minutesPerPomodoro
-            }
-      , secondsLeft = minutesPerPomodoro * 60
-      , timer = Idle
+    ( { pomodorosCompleted = 0
+      , secondsLeft = 5 --minsToSecs 25
+      , isRunning = False
+      , kind = Pomodoro
       }
     , Cmd.none
     )
@@ -71,38 +87,29 @@ init _ =
 
 type Msg
     = Tick Time.Posix
-    | StartTimer
-    | PauseTimer
+    | Start
+    | Pause
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Tick _ ->
-            case model.timer of
-                Idle ->
-                    ( model, Cmd.none )
+            if model.isRunning then
+                if model.secondsLeft == 1 then
+                    ( { model | secondsLeft = minsToSecs 25, isRunning = False }, notify "Timer is done." )
 
-                Paused ->
-                    ( model, Cmd.none )
+                else
+                    ( { model | secondsLeft = model.secondsLeft - 1 }, Cmd.none )
 
-                Running ->
-                    if model.secondsLeft == 1 then
-                        ( { model
-                            | secondsLeft = model.config.minutesPerPomodoro * 60
-                            , timer = Idle
-                          }
-                        , notify "Timer is done."
-                        )
+            else
+                ( model, Cmd.none )
 
-                    else
-                        ( { model | secondsLeft = model.secondsLeft - 1 }, Cmd.none )
+        Start ->
+            ( { model | isRunning = True }, Cmd.none )
 
-        StartTimer ->
-            ( { model | timer = Running }, Cmd.none )
-
-        PauseTimer ->
-            ( { model | timer = Paused }, Cmd.none )
+        Pause ->
+            ( { model | isRunning = False }, Cmd.none )
 
 
 
@@ -118,21 +125,29 @@ subscriptions model =
 -- VIEW
 
 
-view : Model -> Html Msg
 view model =
     let
+        minutes =
+            getMinutesFromSecondsLeft model.secondsLeft
+
         seconds =
-            String.fromInt model.secondsLeft
+            getSecondsFromSecondsLeft model.secondsLeft
+
+        formattedTime =
+            zeroPad minutes ++ ":" ++ zeroPad seconds
+
+        title =
+            formattedTime ++ " - Time to focus!"
     in
-    div []
-        [ h1 [] [ text seconds ]
-        , case model.timer of
-            Idle ->
-                button [ onClick StartTimer ] [ text "Start" ]
+    { title = title
+    , body =
+        [ div []
+            [ h1 [] [ text formattedTime ]
+            , if model.isRunning then
+                button [ onClick Pause ] [ text "Pause" ]
 
-            Running ->
-                button [ onClick PauseTimer ] [ text "Pause" ]
-
-            Paused ->
-                button [ onClick StartTimer ] [ text "Resume" ]
+              else
+                button [ onClick Start ] [ text "Start" ]
+            ]
         ]
+    }
